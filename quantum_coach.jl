@@ -91,6 +91,15 @@ function build_workout_plan_as_dataframe()
     # stuff
 end
 
+function slice_distance_array_to_goal(distances, goal_distance)
+    # Takes an array of workout distances and returns a new array, cutting
+    # at the first time the goal distance is reached. This ensures that the
+    # final training program won't get you to, say, a 42.2km and then have two
+    # more weeks of 'training' after that.
+    indexes = find(distances .< goal_distance)
+    new_distances = vcat(distances[indexes], [goal_distance])
+    return(new_distances)
+end
 
 function main(total_weekly_distance, workouts_per_week, goal_distance=42.2)
 
@@ -106,13 +115,16 @@ function main(total_weekly_distance, workouts_per_week, goal_distance=42.2)
                                              1.025)
 
     # Get some sweet, sweet quantum noise from the file:
-    noise = read_randomness_as_int()
+    noise = alter_noise_array(read_randomness_as_int())
 
     # Mix that quantum noise in with the daily distances:
     new_daily_distances = add_noise_to_distance_array(daily_distances, noise)
 
+    # Shorten the daily distances in line with goal_distance:
+    shortened_daily = slice_distance_array_to_goal(new_daily_distances,
+                                                   goal_distance)
 
-    println(new_daily_distances)
+    println(shortened_daily)
 
 end
 
