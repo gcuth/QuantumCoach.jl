@@ -91,6 +91,42 @@ function build_workout_plan_as_dataframe()
     # stuff
 end
 
+function distance_to_sprints(distance_km, sprint_length_m)
+    # Takes a distance number, rounds it, squashes it, and converts it to int of
+    # n repeats of the specified sprint_length. Pretty ugly/stupid, but works.
+    denom = sprint_length_m / 75 # so that longer sprints have fewer repeats
+    n_sprints = ((distance_km*1000) / denom) / sprint_length_m
+    return(Int(round(n_sprints)))
+end
+
+function distance_to_200m_sprints(distance)
+    # Wrapper for distance_to_sprints, with a cap.
+    n_sprints = distance_to_sprints(distance, 200)
+    return(minimum([n_sprints, 20]))
+end
+
+function distance_to_400m_sprints(distance)
+    # Wrapper to get 400m sprints. Pretty much as above.
+    n_sprints = distance_to_sprints(distance, 400)
+    return(minimum([n_sprints, 12]))
+end
+
+function distance_to_800m_sprints(distance)
+    # Wrapper to get 800m with a cap. Again, as above.
+    n_sprints = distance_to_sprints(distance, 800)
+    return(minimum([n_sprints, 8]))
+end
+
+function distance_to_fartlek(distance)
+    # Takes a distance and returns a smaller, rounded one for fartlek.
+    return(round(distance*0.75, 1))
+end
+
+function distance_to_hill_climb(distance)
+    # Takes a distance and returns a *much* smaller, rounded one for hills.
+    return(round(distance*0.5, 1))
+end
+
 function slice_distance_array_to_goal(distances, goal_distance)
     # Takes an array of workout distances and returns a new array, cutting
     # at the first time the goal distance is reached. This ensures that the
