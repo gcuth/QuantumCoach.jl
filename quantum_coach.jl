@@ -8,12 +8,17 @@ function read_randomness_as_int(path="./noise.dat")
     end
 end
 
-function alter_array_by_current_time(noise_array)
-    # Assumes a long array of Int8 noise. Removes the first n values from the
-    # array, where 'n' is the unix epoch time. This doesn't add any additional
-    # randomness, but it does ensure that pretty much every time you run the
-    # script it'll be different. Even in this 'same' universe. I guess. Quantum
-    # mechanics is pretty confusing.
+function alter_noise_array(noise_array)
+    # Assumes a long array of Int8 noise as input. Removes the first n values
+    # from the front of the array, where 'n' is a pseudorandom positive integer
+    # Between 1 and 10000. This doesn't add any additional quantum fun, but it
+    # does ensure that pretty much every time you run the script it'll be
+    # different. Even in this 'same' universe.
+    # I guess.
+    # Quantum mechanics is confusing.
+    n = rand(1:10000) # the pseudorandom number
+    new_noise = noise_array[n:length(noise_array)] # slice from n to the end
+    return(new_noise)
 end
 
 
@@ -110,9 +115,6 @@ function main(total_weekly_distance, workouts_per_week, goal_distance=42.2)
     println(new_daily_distances)
 
 end
-
-
-
 
 # for i in 1:400
 #     test = add_noise_to_workout_distance(5.0, b[i])
