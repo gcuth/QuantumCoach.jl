@@ -1,4 +1,6 @@
-function read_randomness_as_int(path="./random1e9.dat")
+function read_randomness_as_int(path="./noise.dat")
+    # Read binary quantum randomness from the noise.dat file and covert it into
+    # an array of Int8 values for use.
     open(path) do f
         raw_data = read(f)
         as_int8 = reinterpret(Int8, raw_data)
@@ -6,8 +8,19 @@ function read_randomness_as_int(path="./random1e9.dat")
     end
 end
 
+function alter_array_by_current_time(noise_array)
+    # Assumes a long array of Int8 noise. Removes the first n values from the
+    # array, where 'n' is the unix epoch time. This doesn't add any additional
+    # randomness, but it does ensure that pretty much every time you run the
+    # script it'll be different. Even in this 'same' universe. I guess. Quantum
+    # mechanics is pretty confusing.
+end
+
+
 function get_noise_multiplier(noise::Int8)
-    noise_multiplier = 1 + 0.25(noise/256)
+    # Takes a single Int8 number and converts it into a 'noise_multiplier' for 
+    # ease of use in varying workout distances.
+    noise_multiplier = 1 + (noise/256)/4
     return(noise_multiplier)
 end
 
@@ -37,38 +50,70 @@ function add_noise_to_workout_distance(workout_distance, noise::Int8)
     return(adjusted_distance)
 end
 
-function convert_distance_to_workout(workout_distance, noise::Int8)
-    noise_multiplier = get_noise_multiplier(noise)
+function convert_weekly_to_daily(distance, workouts_per_week)
+    daily_distance = distance/workouts_per_week
+    daily_workouts = fill(daily_distance, workouts_per_week)
+    return(daily_workouts)
 end
 
-function build_daily_distance_array(workouts_per_week, distance_totals)
+function generate_raw_daily_kms(current_weekly_distance,
+                                current_workouts_per_week,
+                                max_workout_distance,
+                                multiplier)
+    max_weekly_distance = max_workout_distance*current_workouts_per_week
+    weekly_distances = calculate_distance_totals(current_weekly_distance,
+                                                 max_weekly_distance,
+                                                 multiplier)
+    daily_distances = [convert_weekly_to_daily(x, current_workouts_per_week)
+                       for x in weekly_distances]
+    flat_daily_distances = collect(Iterators.flatten(daily_distances))
+    return(flat_daily_distances)
+end
+
+function add_noise_to_distance_array(distances, noise)
+    # Takes an array of distances and an array of 'noise' --- probably an array
+    # of Int8 coming from read_randomness_as_int() --- and adds noise to each
+    # of the distances before returning a new array of noisy distances.
+    noisy_distances = []
+    for i in 1:length(distances)
+        new_distance = add_noise_to_workout_distance(distances[i], noise[i])
+        push!(noisy_distances, new_distance)
+    end
+    return(noisy_distances)
+end
+
+function build_workout_plan_as_dataframe()
     # stuff
-
-end
-
-function build_workout_plan()
-    # stuff
 end
 
 
+function main(total_weekly_distance, workouts_per_week, goal_distance=42.2)
 
-function main()
-    a = read_randomness_as_int()
-    println(a[2])
+    # Start by printing facts about current distance etc. to the console:
+    println("Your Current Weekly Distance (km): ", total_weekly_distance)
+    println("Your Current Weekly # of Workouts: ", workouts_per_week)
+    println("Your Goal is to run ", goal_distance, " km in a single run.")
+
+    # Build a raw array of daily workout distances:
+    daily_distances = generate_raw_daily_kms(total_weekly_distance,
+                                             workouts_per_week,
+                                             goal_distance,
+                                             1.025)
+
+    # Get some sweet, sweet quantum noise from the file:
+    noise = read_randomness_as_int()
+
+    # Mix that quantum noise in with the daily distances:
+    new_daily_distances = add_noise_to_distance_array(daily_distances, noise)
+
+
+    println(new_daily_distances)
+
 end
 
 
 
 
-# total_weekly_distance = ARGS[1]
-# workouts_per_week = ARGS[2]
-
-# println("Total Weekly Distance (km): ", total_weekly_distance)
-# println("Weekly Total # of Workouts: ", workouts_per_week)
-
-
-# workouts = []
-# multipliers = []
 # for i in 1:400
 #     test = add_noise_to_workout_distance(5.0, b[i])
 #     push!(workouts, test)
