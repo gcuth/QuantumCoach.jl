@@ -1,3 +1,5 @@
+using DataFrames
+
 function read_randomness_as_int(path="./noise.dat")
     # Read binary quantum randomness from the noise.dat file and covert it into
     # an array of Int8 values for use.
@@ -87,8 +89,17 @@ function add_noise_to_distance_array(distances, noise)
     return(noisy_distances)
 end
 
-function build_workout_plan_as_dataframe()
-    # stuff
+function build_workout_dataframe_from_distances(distances)
+    # Wrapper to create a dataframe based on an array of raw distances.
+    # Includes all major workout options.
+    df = DataFrame(raw_distance = distances,
+                   sprints_200m = [distance_to_200m_sprints(x) for x in distances],
+                   sprints_400m = [distance_to_400m_sprints(x) for x in distances],
+                   sprints_800m = [distance_to_800m_sprints(x) for x in distances],
+                   fartlek = [distance_to_fartlek(x) for x in distances],
+                   hill_run = [distance_to_hill_climb(x) for x in distances],
+                   tempo = [round(x, 1) for x in distances])
+    return(df)
 end
 
 function distance_to_sprints(distance_km, sprint_length_m)
@@ -160,21 +171,7 @@ function main(total_weekly_distance, workouts_per_week, goal_distance=42.2)
     shortened_daily = slice_distance_array_to_goal(new_daily_distances,
                                                    goal_distance)
 
-    println(shortened_daily)
+    # Build a workouts dataframe:
+    workouts = build_workout_dataframe_from_distances(shortened_daily)
 
 end
-
-# for i in 1:400
-#     test = add_noise_to_workout_distance(5.0, b[i])
-#     push!(workouts, test)
-#     push!(multipliers, get_noise_multiplier(b[i]))
-# end
-# println(multipliers)
-
-# open("/Users/galen/Desktop/random1e9.dat") do f
-#     a = read(f)
-#     b = reinterpret(Int8, a)
-# end
-
-# weekly_distances = calculate_distance_totals(50, 150, 1.05)
-# println(weekly_distances)
