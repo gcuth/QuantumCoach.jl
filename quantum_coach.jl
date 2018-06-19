@@ -1,7 +1,17 @@
+#!/usr/bin/env julia
+#
+# Usage: julia -L quantum_coach.jl -e 'build_plan(weekly_kms, n_workouts_per_week, goal_distance)'
+#
+#    eg. 'build_plan(20, 4, 42.2)'
+#          > This would output a taskpaper plan for someone who is currently
+#            running ~20kms per week (spread across 4 workouts) and training for
+#            a marathon distance run.
+
+
 using DataFrames
 
 
-function read_randomness_as_int(path="./noise.dat")
+function read_noise_as_int(path="./noise.dat")
     # Read binary quantum randomness from the noise.dat file and covert it into
     # an array of Int8 values for use.
     open(path) do f
@@ -12,7 +22,7 @@ function read_randomness_as_int(path="./noise.dat")
 end
 
 
-function normalise_int_to_range(n::Int8, new_min, new_max)
+function scale_int_to_range(n::Int8, new_min, new_max)
     # Takes an Int8 number; returns its normalised value (relative to -255:256)
     # within a new range. Used for getting a random number from the quantum
     # noise that's useable for cases similar to rand(0:n).
@@ -37,7 +47,7 @@ function alter_noise_array(noise_array)
 end
 
 
-function get_noise_multiplier(noise::Int8)
+function create_multiplier(noise::Int8)
     # Takes a single Int8 number and converts it into a 'noise_multiplier' for 
     # ease of use in varying workout distances.
     noise_multiplier = 1 + (noise/256)/4
@@ -45,14 +55,14 @@ function get_noise_multiplier(noise::Int8)
 end
 
 
-function calculate_distance_totals(current_distance, max_distance, multiplier)
+function calculate_week_totals(current_total, max_total, rate)
     # Calculates each (weekly) distance total by multiplying the latest
-    # distance by the 'multiplier' until the max distance is reached.
+    # distance by the increase 'rate' until the max distance is reached.
 
-    distances = [max(1.0, current_distance)] # ensures that growth is possible
+    distances = [max(1.0, current_total)] # ensures that growth is possible
 
-    while distances[length(distances)] < max_distance
-        new_distance = distances[length(distances)] * multiplier
+    while distances[length(distances)] < max_total
+        new_distance = distances[length(distances)] * rate
         push!(distances, new_distance)
     end
 
@@ -60,66 +70,35 @@ function calculate_distance_totals(current_distance, max_distance, multiplier)
 end
 
 
-function add_noise_to_workout_distance(workout_distance, noise::Int8)
-    noise_multiplier = get_noise_multiplier(noise)
-    if noise > 0
-        adjusted_distance = workout_distance * noise_multiplier
-    elseif noise < 0
-        adjusted_distance = workout_distance * noise_multiplier
-    else
-        adjusted_distance = workout_distance
-    end
-    return(adjusted_distance)
-end
-
-
-function convert_weekly_to_daily(distance, workouts_per_week)
-    daily_distance = distance/workouts_per_week
-    daily_workouts = fill(daily_distance, workouts_per_week)
+function convert_to_daily(week_distance, runs_per_week)
+    # tk
+    daily_distance = week_distance / runs_per_week
+    daily_workouts = fill(daily_distance, runs_per_week)
     return(daily_workouts)
 end
 
 
-function generate_raw_daily_kms(current_weekly_distance,
-                                current_workouts_per_week,
-                                max_workout_distance,
-                                multiplier)
-    max_weekly_distance = max_workout_distance*current_workouts_per_week
-    weekly_distances = calculate_distance_totals(current_weekly_distance,
-                                                 max_weekly_distance,
-                                                 multiplier)
-    daily_distances = [convert_weekly_to_daily(x, current_workouts_per_week)
-                       for x in weekly_distances]
-    flat_daily_distances = collect(Iterators.flatten(daily_distances))
-    return(flat_daily_distances)
+function generate_daily_kms(current_km, n_runs, goal_km, rate)
+    # Uses calculate_week_totals() and convert_to_daily() to make a raw array of
+    # gradually increasing runs up to the goal distance.
+    max_week_kms = goal_km * n_runs
+    weeks = calculate_week_totals(current_km, max_week_kms, rate)
+    day_distances = [convert_to_daily(x, n_runs) for x in weeks]
+    flat_distances = collect(Iterators.flatten(day_distances))
+    return(flat_distances)
 end
 
 
 function add_noise_to_distance_array(distances, noise)
     # Takes an array of distances and an array of 'noise' --- probably an array
-    # of Int8 coming from read_randomness_as_int() --- and adds noise to each
+    # of Int8 coming from read_noise_as_int() --- and adds noise to each
     # of the distances before returning a new array of noisy distances.
     noisy_distances = []
     for i in 1:length(distances)
-        new_distance = add_noise_to_workout_distance(distances[i], noise[i])
+        new_distance = distances[i] * create_multiplier(noise[i])
         push!(noisy_distances, new_distance)
     end
     return(noisy_distances)
-end
-
-
-function build_workout_dataframe_from_distances(distances)
-    # Wrapper to create a dataframe based on an array of raw distances.
-    # Includes all major workout options.
-    df = DataFrame(raw_distance = distances,
-                   sprints_200m = [distance_to_200m_sprints(x) for x in distances],
-                   sprints_400m = [distance_to_400m_sprints(x) for x in distances],
-                   sprints_800m = [distance_to_800m_sprints(x) for x in distances],
-                   fartlek = [distance_to_fartlek(x) for x in distances],
-                   hill_run = [distance_to_hill_climb(x) for x in distances],
-                   long_run = [round((1.1*x), 1) for x in distances],
-                   tempo = [round((0.9*x),1) for x in distances])
-    return(df)
 end
 
 
@@ -153,15 +132,18 @@ function distance_to_800m_sprints(distance)
 end
 
 
-function distance_to_fartlek(distance)
-    # Takes a distance and returns a smaller, rounded one for fartlek.
-    return(round(distance*0.75, 1))
-end
-
-
-function distance_to_hill_climb(distance)
-    # Takes a distance and returns a *much* smaller, rounded one for hills.
-    return(round(distance*0.5, 1))
+function build_workout_dataframe(distances)
+    # Wrapper to create a dataframe based on an array of raw distances.
+    # Includes all major workout options.
+    df = DataFrame(raw_distance = distances,
+                   sprints_200m = [distance_to_200m_sprints(x) for x in distances],
+                   sprints_400m = [distance_to_400m_sprints(x) for x in distances],
+                   sprints_800m = [distance_to_800m_sprints(x) for x in distances],
+                   fartlek = [round((0.75*x), 1) for x in distances],
+                   hill_run = [round((0.5*x), 1) for x in distances],
+                   long_run = [round((1.1*x), 1) for x in distances],
+                   tempo = [round((0.9*x), 1) for x in distances])
+    return(df)
 end
 
 
@@ -257,7 +239,7 @@ function choose_workout_plan(workout_df, workouts_per_week, noise)
             push!(plan_df, workout) # add the workout row to the plan_df
         # otherwise, normal options ...
         else
-            noise_n = normalise_int_to_range(noise[i], 1, length(workout_options))
+            noise_n = scale_int_to_range(noise[i], 1, length(workout_options))
             chosen_workout = workout_options[noise_n]
             workout_n = workout_df[i, Symbol(chosen_workout)]
             workout_distance = calculate_workout_distance(chosen_workout,
@@ -272,19 +254,19 @@ function choose_workout_plan(workout_df, workouts_per_week, noise)
 end
 
 
-function workout_to_taskpaper(workout_type, workout_n, workout_distance)
+function workout_to_taskpaper(run_type, run_n, run_distance)
     # Takes info about a workout; returns a taskpaper string representing it.
     # Designed for import to omnifocus. Pretty basic.
-    run_time = Int(round(15 + workout_distance*6.5)) # estimated task duration
-    if contains(workout_type, "sprints")
-        sprint_length = workout_type[search(workout_type, r"[0-9]+m")]
-        task = "Go for a run: $(Int(workout_n)) repeats of $sprint_length"
+    run_time = Int(round(15 + run_distance*6.5)) # estimated task duration
+    if contains(run_type, "sprints")
+        sprint_length = run_type[search(run_type, r"[0-9]+m")]
+        task = "Go for a run: $(Int(run_n)) repeats of $sprint_length"
     else
-        workout_name = replace(workout_type, "_", " ")
-        if contains(workout_type, "run")
-            task = "Go for a $workout_name: $workout_n km"
+        workout_name = replace(run_type, "_", " ")
+        if contains(run_type, "run")
+            task = "Go for a $workout_name: $run_n km"
         else
-            task = "Go for a $workout_name run: $workout_n km"
+            task = "Go for a $workout_name run: $run_n km"
         end
     end
     taskpaper_task = "- " * task * " @estimate($(run_time)m)"
@@ -292,54 +274,52 @@ function workout_to_taskpaper(workout_type, workout_n, workout_distance)
 end
 
 
-function output_taskpaper(plan_df)
+function output_taskpaper(plan_df, n_workouts, add_recovery=true)
     # Takes a workout plan dataframe and uses workout_to_taskpaper to output a
     # full list of workout tasks for import into omnifocus (or taskpaper!)
 
-    taskpaper_plan = [workout_to_taskpaper(plan_df[i, :workout_type],
-                                           plan_df[i, :workout_n],
-                                           plan_df[i, :distance])
-                      for i in 1:size(plan_df, 1)]
+    run_plan = [workout_to_taskpaper(plan_df[i, :workout_type],
+                                     plan_df[i, :workout_n],
+                                     plan_df[i, :distance])
+                for i in 1:size(plan_df, 1)]
 
-    for i in 1:length(taskpaper_plan)
-        println(taskpaper_plan[i])
+    for i in 1:length(run_plan)
+        println(run_plan[i])
     end
 
 end
 
 
-function main(total_weekly_distance::Float64,
-              workouts_per_week::Int64,
-              goal_distance=42.2)
+function build_plan(weekly_kms::Float64, n_workouts::Int64, goal_kms=42.2)
 
     # Start by printing facts about current distance etc. to the console:
-    println("Quantum Run Training Plan ($(goal_distance)km):")
+    println("Quantum Run Training Plan ($(goal_kms)km):")
 
     # Build a raw array of daily workout distances:
-    daily_distances = generate_raw_daily_kms(total_weekly_distance,
-                                             workouts_per_week,
-                                             goal_distance,
-                                             1.015)
+    daily_kms = generate_daily_kms(weekly_kms,
+                                   n_workouts,
+                                   goal_kms,
+                                   1.015)
 
     # Get some sweet, sweet quantum noise from the file:
-    noise = alter_noise_array(read_randomness_as_int())
+    noise = alter_noise_array(read_noise_as_int())
 
     # Mix that quantum noise in with the daily distances:
-    new_daily_distances = add_noise_to_distance_array(daily_distances, noise)
+    daily_kms = add_noise_to_distance_array(daily_kms, noise)
 
-    # Shorten the daily distances in line with goal_distance:
-    shortened_daily = slice_distance_array_to_goal(new_daily_distances,
-                                                   goal_distance)
+    # Shorten the daily distances in line with goal_kms:
+    daily_kms = slice_distance_array_to_goal(daily_kms,
+                                             goal_kms)
 
     # Build a workouts dataframe:
-    workouts = build_workout_dataframe_from_distances(shortened_daily)
+    workouts_df = build_workout_dataframe(daily_kms)
 
     # Build the final workouts plan:
-    workout_plan = choose_workout_plan(workouts,
-                                       workouts_per_week,
+    workout_plan = choose_workout_plan(workouts_df,
+                                       n_workouts,
                                        alter_noise_array(noise))
 
     # Print as taskpaper lines:
-    output_taskpaper(workout_plan)
+    output_taskpaper(workout_plan, n_workouts)
 
 end
