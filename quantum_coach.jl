@@ -141,7 +141,7 @@ function build_workout_dataframe(distances)
                    sprints_800m = [distance_to_800m_sprints(x) for x in distances],
                    fartlek = [round((0.75*x), 1) for x in distances],
                    hill_run = [round((0.5*x), 1) for x in distances],
-                   long_run = [round((1.1*x), 1) for x in distances],
+                   long_run = [round((1.2*x), 1) for x in distances],
                    tempo = [round((0.9*x), 1) for x in distances])
     return(df)
 end
