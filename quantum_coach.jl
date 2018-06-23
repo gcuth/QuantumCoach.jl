@@ -139,10 +139,10 @@ function build_workout_dataframe(distances)
                    sprints_200m = [distance_to_200m_sprints(x) for x in distances],
                    sprints_400m = [distance_to_400m_sprints(x) for x in distances],
                    sprints_800m = [distance_to_800m_sprints(x) for x in distances],
-                   fartlek = [round((0.75*x), 1) for x in distances],
-                   hill_run = [round((0.5*x), 1) for x in distances],
-                   long_run = [round((1.2*x), 1) for x in distances],
-                   tempo = [round((0.9*x), 1) for x in distances])
+                   fartlek = [round((0.55*x), 1) for x in distances],
+                   hill_run = [round((0.35*x), 1) for x in distances],
+                   long_run = [round((1*x), 1) for x in distances],
+                   tempo = [round((0.7*x), 1) for x in distances])
     return(df)
 end
 
@@ -198,17 +198,18 @@ function choose_workout_plan(workout_df, workouts_per_week, noise)
     # week as a long run. Chooses at random between workouts for the remainder.
     # Painful sprints and hill runs are deliberately rare. 
 
-    hard_workouts = ["sprints_200m",
-                     "hill_run",
-                     "sprints_800m",
-                     "sprints_800m"]
+    hard_w = ["hill_run",
+              "sprints_200m",
+              "sprints_400m",
+              "sprints_800m",
+              "sprints_800m"]
 
-    easy_workouts = ["fartlek",
-                     "fartlek",
-                     "sprints_400m",
-                     "tempo",
-                     "tempo",
-                     "tempo"]
+    easy_w = ["fartlek",
+              "fartlek",
+              "sprints_400m",
+              "tempo",
+              "tempo",
+              "tempo"]
 
     plan_df = DataFrame(workout_type = String[],
                         workout_n = Float64[],
@@ -219,9 +220,13 @@ function choose_workout_plan(workout_df, workouts_per_week, noise)
         if workout_df[i,:raw_distance] > 10
             # deliberately gotta be established for the hard things to have
             # a chance of occurring at all:
-            workout_options = vcat(hard_workouts,repeat(easy_workouts,outer=2))
+            workout_options = vcat(hard_w,repeat(easy_w,outer=2))
+        elseif workout_df[i,:raw_distance] > 30
+            workout_options = vcat(hard_w,easy_w)
+        elseif workout_df[i,:raw_distance] > 40
+            workout_options = vcat(easy_w,repeat(hard_w,outer=2))
         else
-            workout_options = easy_workouts
+            workout_options = easy_w
         end
 
         # if it's the second to last workout, make it short sprints:
@@ -287,6 +292,23 @@ function output_taskpaper(plan_df, n_workouts, add_recovery=true)
         println(run_plan[i])
     end
 
+end
+
+
+function choose_recovery_workout(noise_n::Int8)
+    # Takes a single noise integer, scales it, and returns a random workout in
+    # taskpaper format.
+    workouts = ["- Do 60 minutes of yoga @estimate(60m)",
+                "- Do the /r/bodyweightfitness Recommended Routine @estimate(60m)"]
+    noise_i = scale_int_to_range(noise, 1, length(workouts))
+    return(workouts[noise_i])
+end
+
+
+function add_recovery_workouts(running_plan, n_workouts)
+    # Takes an array of taskpaper workouts, along with the number of workouts in
+    # each week. Fills all non-run days with taskpaper-formatted recovery tasks
+    # and assumes that
 end
 
 
