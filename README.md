@@ -22,7 +22,7 @@ build_plan(total_weekly_distance_in_km, number_of_running_workouts_per_week, goa
 For example, if I were running four times a week for a total of 30.0km and was aiming for a marathon distance:
 
 ```
-julia -L quantum_coach.jl -e 'build_plan(40.0, 4, 42.2)'
+julia -L quantum_coach.jl -e 'build_plan(30.0, 4, 42.2)'
 ```
 
 This will output a taskpaper project, looking something like this:
@@ -53,7 +53,11 @@ Also, while this is probably obvious:
 - I'm not responsible if you hurt yourself while following the training program.
 
 ## Motivation
-I've written a bit about the motivation for this project, and logic of the script, on [my blog](https://zgcuth.me/quantum-run). Broadly speaking though, the dumb motivation behind `quantum_coach` is obvious: every time I run, I my life diverges from the other, many worlds. I'll never know what it's like to train for a marathon in Universe B, but I feel a connection with that Other Self. Thanks to the behaviour of photons, we suffer differently. Together. It blows my mind that I can achieve this with a few lines of code (in a language I barely understand) and a concrete commitment to following the generated project. I use [beeminder](https://www.beeminder.com/) to guarantee I'll run as required, but honestly, I hardly need it. Thanks to some deep cognitive bias, the solidarity is enough: every time I drag my feet and think about skipping a workout, I think about all my other world selves. I pull on my runners so as not to let them down.
+I've written a bit about the motivation for this project, and logic of the script, on [my blog](https://zgcuth.me/quantum-run). Broadly speaking though, the dumb motivation behind `quantum_coach` is obvious: every time I run, I my life diverges from the other, many worlds.
+
+I'll never know what it's like to train for a marathon in Universe B, but I feel a connection with that Other Self. Thanks to the behaviour of photons, we suffer differently. Together.
+
+It blows my mind that I can achieve this with a few lines of code (in a language I barely understand) and a concrete commitment to following the generated project. I use [beeminder](https://www.beeminder.com/) to increase the chances that I'll run as required, but honestly, I rarely need it. Thanks to some deep brokenness / cognitive bias, the solidarity is enough. Every time I drag my feet and think about skipping a workout, I think about all my other world selves. I pull on my runners so as not to let them down.
 
 ## Licence
 This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details.
