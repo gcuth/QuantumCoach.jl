@@ -22,17 +22,6 @@ function read_noise_as_int(path="./noise.dat")
 end
 
 
-function scale_int_to_range(n::Int8, new_min, new_max)
-    # Takes an Int8 number; returns its normalised value (relative to -255:256)
-    # within a new range. Used for getting a random number from the quantum
-    # noise that's useable for cases similar to rand(0:n).
-    a = (new_max - new_min) / (256 - (-255))
-    b = new_min - (-255a)
-    scaled_value = a * n + b
-    return(Int(round(scaled_value)))
-end
-
-
 function alter_noise_array(noise_array)
     # Assumes a long array of Int8 noise as input. Removes the first n values
     # from the front of the array, where 'n' is a pseudorandom positive integer
@@ -192,9 +181,9 @@ function daily_distance_is_safe(distances, workouts_per_week)
 end
 
 
-function choose_workout_plan(workout_df, workouts_per_week, noise)
+function choose_workout_plan(workout_df, workouts_per_week)
     # Takes a workout_df, containing all the distances / options, along with
-    # workouts_per_week and a noise array. Reserves the final workout of each
+    # workouts_per_week. Reserves the final workout of each
     # week as a long run. Chooses at random between workouts for the remainder.
     # Painful sprints and hill runs are deliberately rare. 
 
@@ -244,8 +233,8 @@ function choose_workout_plan(workout_df, workouts_per_week, noise)
             push!(plan_df, workout) # add the workout row to the plan_df
         # otherwise, normal options ...
         else
-            noise_n = scale_int_to_range(noise[i], 1, length(workout_options))
-            chosen_workout = workout_options[noise_n]
+            n = rand(1:length(workout_options))
+            chosen_workout = workout_options[n]
             workout_n = workout_df[i, Symbol(chosen_workout)]
             workout_distance = calculate_workout_distance(chosen_workout,
                                                           workout_n)
@@ -288,6 +277,10 @@ function output_taskpaper(plan_df, n_workouts, add_recovery=true)
                                      plan_df[i, :distance])
                 for i in 1:size(plan_df, 1)]
 
+    if add_recovery
+        run_plan = add_recovery_workouts(run_plan, n_workouts)
+    end
+
     for i in 1:length(run_plan)
         println(run_plan[i])
     end
@@ -295,20 +288,68 @@ function output_taskpaper(plan_df, n_workouts, add_recovery=true)
 end
 
 
-function choose_recovery_workout(noise_n::Int8)
+function choose_recovery_workout()
     # Takes a single noise integer, scales it, and returns a random workout in
     # taskpaper format.
-    workouts = ["- Do 60 minutes of yoga @estimate(60m)",
-                "- Do the /r/bodyweightfitness Recommended Routine @estimate(60m)"]
-    noise_i = scale_int_to_range(noise, 1, length(workouts))
-    return(workouts[noise_i])
+    workouts = ["- Do a kettlebell workout @estimate(30m)",
+                "- Do the /r/bodyweightfitness Routine @estimate(60m)",
+                "- Do a session of Yoga with Adriene @estimate(60m)",
+                "- tk"]
+    return(workouts[rand(1:length(workouts))])
+end
+
+
+function pick_recovery_days(n_workouts)
+    # Takes a number of workouts per week (int). Always returns an array of 
+    # length 7 filled with bool values, representing a week where true == 'a
+    # recovery day' and false == 'a running day'. Makes long run last day of
+    # the week and assumes following day rest if possible
+    if n_workouts >= 7
+        return(fill(false, 7))
+    else
+        workouts_between = vcat(fill(false, (n_workouts-1)),
+                                fill(true, (5-(n_workouts-1))))
+        return(vcat(true, shuffle(workouts_between), false))
+    end
 end
 
 
 function add_recovery_workouts(running_plan, n_workouts)
     # Takes an array of taskpaper workouts, along with the number of workouts in
     # each week. Fills all non-run days with taskpaper-formatted recovery tasks
-    # and assumes that
+    # and prioritises active recovery after the weekly long run.
+    if n_workouts == 7
+        full_schedule = running_plan
+    else
+        n_weeks = ceil(length(running_plan)/n_workouts)
+
+        recovery_days = []
+
+        for i in 1:n_weeks
+            push!(recovery_days, pick_recovery_days(n_workouts))
+        end
+
+        recovery_days = collect(Iterators.flatten(recovery_days))
+
+        full_schedule = []
+
+        while length(running_plan) > 0
+            if recovery_days[1] == true
+                workout = choose_recovery_workout()
+                push!(full_schedule, workout)
+                deleteat!(recovery_days, 1)
+            else
+                workout = running_plan[1]
+                push!(full_schedule, workout)
+                deleteat!(recovery_days, 1)
+                deleteat!(running_plan, 1)
+            end
+        end
+
+    end
+    
+    return(full_schedule)
+
 end
 
 
@@ -321,7 +362,7 @@ function build_plan(weekly_kms::Float64, n_workouts::Int64, goal_kms=42.2)
     daily_kms = generate_daily_kms(weekly_kms,
                                    n_workouts,
                                    goal_kms,
-                                   1.015)
+                                   1.02)
 
     # Get some sweet, sweet quantum noise from the file:
     noise = alter_noise_array(read_noise_as_int())
@@ -338,8 +379,7 @@ function build_plan(weekly_kms::Float64, n_workouts::Int64, goal_kms=42.2)
 
     # Build the final workouts plan:
     workout_plan = choose_workout_plan(workouts_df,
-                                       n_workouts,
-                                       alter_noise_array(noise))
+                                       n_workouts)
 
     # Print as taskpaper lines:
     output_taskpaper(workout_plan, n_workouts)
