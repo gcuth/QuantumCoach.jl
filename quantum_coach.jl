@@ -265,7 +265,7 @@ function workout_to_taskpaper(run_type, run_n, run_distance)
 end
 
 
-function output_taskpaper(plan_df, n_workouts, add_recovery=true, add_defer=true)
+function output_taskpaper(plan_df, n_workouts, add_recovery=true, defer=true)
     # Takes a workout plan dataframe and uses workout_to_taskpaper to output a
     # full list of workout tasks for import into omnifocus (or taskpaper!)
 
@@ -278,7 +278,7 @@ function output_taskpaper(plan_df, n_workouts, add_recovery=true, add_defer=true
         run_plan = add_recovery_workouts(run_plan, n_workouts)
     end
 
-    if add_defer
+    if defer
         run_plan = add_defer_dates(run_plan, "today")
     end
 
