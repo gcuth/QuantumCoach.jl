@@ -176,16 +176,14 @@ function calculate_workout_distance(workout_type, workout_n)
 end
 
 
-function get_workout_options(workout_distance::Float)
+function get_workout_options(distance)
     # Takes a workout distance and returns an array of workout options. The
     # proportion of hard vs easy workouts changes as the distance increases.
-
     hard_w = ["hill_run",
               "sprints_200m",
               "sprints_400m",
               "sprints_800m",
               "sprints_800m"]
-
     easy_w = ["fartlek",
               "fartlek",
               "sprints_400m",
@@ -193,8 +191,14 @@ function get_workout_options(workout_distance::Float)
               "tempo",
               "tempo"]   
 
-    return(workout_options)
+    if distance < 10
+        options = easy_w
+    else
+        options = vcat(easy_w,
+                       repeat(hard_w, outer=Int(div(distance,10))))
+    end
 
+    return(options)
 end
 
 
@@ -202,28 +206,14 @@ end
 
 function choose_workout_plan(workout_df, workouts_per_week)
     # Takes a workout_df, containing all the distances / options, along with
-    # workouts_per_week. Reserves the final workout of each
-    # week as a long run. Chooses at random between workouts for the remainder.
-    # Painful sprints and hill runs are deliberately rare. 
+    # workouts_per_week. Reserves the final workout of each week (and the whole 
+    # plan) as a long run; chooses randomly for the remainder.
 
     plan_df = DataFrame(workout_type = String[],
                         workout_n = Float64[],
                         distance = Float64[])
 
     for i in 1:size(workout_df,1)
-
-        if workout_df[i,:raw_distance] > 10
-            # deliberately gotta be established for the hard things to have
-            # a chance of occurring at all:
-            workout_options = vcat(hard_w,repeat(easy_w,outer=2))
-        elseif workout_df[i,:raw_distance] > 30
-            workout_options = vcat(hard_w,easy_w)
-        elseif workout_df[i,:raw_distance] > 40
-            workout_options = vcat(easy_w,repeat(hard_w,outer=2))
-        else
-            workout_options = easy_w
-        end
-
         # if it's the second to last workout, make it short sprints:
         if i == (length(workout_df[1])-1)
             workout = ["sprints_200m",
@@ -239,6 +229,7 @@ function choose_workout_plan(workout_df, workouts_per_week)
             push!(plan_df, workout) # add the workout row to the plan_df
         # otherwise, normal options ...
         else
+            workout_options = get_workout_options(workout_df[i, :raw_distance])
             n = rand(1:length(workout_options))
             chosen_workout = workout_options[n]
             workout_n = workout_df[i, Symbol(chosen_workout)]
