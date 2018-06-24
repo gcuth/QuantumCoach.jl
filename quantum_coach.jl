@@ -182,19 +182,14 @@ function get_workout_options(distance)
     hard_w = ["hill_run",
               "sprints_200m",
               "sprints_400m",
-              "sprints_800m",
               "sprints_800m"]
     easy_w = ["fartlek",
-              "fartlek",
-              "sprints_400m",
-              "tempo",
-              "tempo",
-              "tempo"]   
+              "tempo"]
 
     if distance < 10
         options = easy_w
     else
-        options = vcat(repeat(easy_w, outer=2),
+        options = vcat(repeat(easy_w, outer=4),
                        repeat(hard_w, outer=Int(div(distance,10))))
     end
 
