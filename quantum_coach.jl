@@ -1,6 +1,6 @@
 #!/usr/bin/env julia
 #
-# Usage: julia -L quantum_coach.jl -e 'build_plan(weekly_kms, n_workouts_per_week, goal_distance)'
+# Usage: julia -L quantum_coach.jl -e 'build_plan(weekly_kms, n_workouts, goal)'
 #
 #    eg. 'build_plan(20, 4, 42.2)'
 #          > This would output a taskpaper plan for someone who is currently
@@ -12,8 +12,8 @@ using DataFrames
 
 
 function read_noise_as_int(path="./noise.dat")
-    # Read binary quantum randomness from the noise.dat file and covert it into
-    # an array of Int8 values for use.
+    # Reads binary quantum randomness from noise.dat file and coverts it into an
+    # array of Int8 values for use.
     open(path) do f
         raw_data = read(f)
         as_int8 = reinterpret(Int8, raw_data)
@@ -22,7 +22,7 @@ function read_noise_as_int(path="./noise.dat")
 end
 
 
-function alter_noise_array(noise_array)
+function alter_noise_array(noise_array::Array)
     # Assumes a long array of Int8 noise as input. Removes the first n values
     # from the front of the array, where 'n' is a pseudorandom positive integer
     # Between 10000 and 20000. This doesn't add any additional quantum fun, but
@@ -60,14 +60,14 @@ end
 
 
 function convert_to_daily(week_distance, runs_per_week)
-    # tk
+    # Converts a weekly distance to an array of daily run distances.
     daily_distance = week_distance / runs_per_week
     daily_workouts = fill(daily_distance, runs_per_week)
     return(daily_workouts)
 end
 
 
-function generate_daily_kms(current_km, n_runs, goal_km, rate)
+function generate_daily_kms(current_km, n_runs, goal_km, rate=1.02)
     # Uses calculate_week_totals() and convert_to_daily() to make a raw array of
     # gradually increasing runs up to the goal distance.
     max_week_kms = goal_km * n_runs
@@ -100,22 +100,22 @@ function distance_to_sprints(distance_km, sprint_length_m)
 end
 
 
-function distance_to_200m_sprints(distance)
-    # Wrapper for distance_to_sprints, with a cap.
+function distance_to_200m(distance)
+    # Wrapper for distance_to_sprints, with a cap, for 200m sprints.
     n_sprints = distance_to_sprints(distance, 200)
     return(maximum([minimum([n_sprints, 20]),5]))
 end
 
 
-function distance_to_400m_sprints(distance)
-    # Wrapper to get 400m sprints. Pretty much as above.
+function distance_to_400m(distance)
+    # Wrapper to get n of 400m sprints. Pretty much as above.
     n_sprints = distance_to_sprints(distance, 400)
     return(maximum([minimum([n_sprints, 12]),5]))
 end
 
 
-function distance_to_800m_sprints(distance)
-    # Wrapper to get 800m with a cap. Again, as above.
+function distance_to_800m(distance)
+    # Wrapper to get 800m sprint n with a cap. Again, as above.
     n_sprints = distance_to_sprints(distance, 800)
     return(maximum([minimum([n_sprints, 8]),4]))
 end
@@ -124,14 +124,26 @@ end
 function build_workout_dataframe(distances)
     # Wrapper to create a dataframe based on an array of raw distances.
     # Includes all major workout options.
+
+    # Create workout arrays:
+    sprints_200m = [distance_to_200m(x) for x in distances]
+    sprints_400m = [distance_to_400m(x) for x in distances]
+    sprints_800m = [distance_to_800m(x) for x in distances]
+    fartleks = [round((0.55*x), 1) for x in distances]
+    hill_runs = [round((0.35*x), 1) for x in distances]
+    long_runs = [round((1*x), 1) for x in distances]
+    tempo_runs = [round((0.7*x), 1) for x in distances]
+
+    # Build dataframe:
     df = DataFrame(raw_distance = distances,
-                   sprints_200m = [distance_to_200m_sprints(x) for x in distances],
-                   sprints_400m = [distance_to_400m_sprints(x) for x in distances],
-                   sprints_800m = [distance_to_800m_sprints(x) for x in distances],
-                   fartlek = [round((0.55*x), 1) for x in distances],
-                   hill_run = [round((0.35*x), 1) for x in distances],
-                   long_run = [round((1*x), 1) for x in distances],
-                   tempo = [round((0.7*x), 1) for x in distances])
+                   sprints_200m = sprints_200m,
+                   sprints_400m = sprints_400m,
+                   sprints_800m = sprints_800m,
+                   fartlek = fartleks,
+                   hill_run = hill_runs,
+                   long_run = long_runs,
+                   tempo = tempo_runs)
+
     return(df)
 end
 
@@ -164,28 +176,9 @@ function calculate_workout_distance(workout_type, workout_n)
 end
 
 
-function daily_distance_is_safe(distances, workouts_per_week)
-    # Takes an array of daily workout distances. Totals each week's distance,
-    # and if any one week is more than 10% higher than the previous, returns
-    # false. True otherwise.
-    week_slice(x, n) = [x[i:min(i+n-1,length(x))] for i in 1:n:length(x)]
-    weeks = week_slice(distances, workouts_per_week)
-    println(weeks)
-    week_totals = [sum(week) for week in weeks]
-    println(week_totals)
-    weekly_increase = []
-    for i in 2:length(week_totals)
-        push!(weekly_increase, week_totals[i]/week_totals[i-1])
-    end
-    return(weekly_increase)
-end
-
-
-function choose_workout_plan(workout_df, workouts_per_week)
-    # Takes a workout_df, containing all the distances / options, along with
-    # workouts_per_week. Reserves the final workout of each
-    # week as a long run. Chooses at random between workouts for the remainder.
-    # Painful sprints and hill runs are deliberately rare. 
+function get_workout_options(workout_distance::Float)
+    # Takes a workout distance and returns an array of workout options. The
+    # proportion of hard vs easy workouts changes as the distance increases.
 
     hard_w = ["hill_run",
               "sprints_200m",
@@ -198,7 +191,20 @@ function choose_workout_plan(workout_df, workouts_per_week)
               "sprints_400m",
               "tempo",
               "tempo",
-              "tempo"]
+              "tempo"]   
+
+    return(workout_options)
+
+end
+
+
+
+
+function choose_workout_plan(workout_df, workouts_per_week)
+    # Takes a workout_df, containing all the distances / options, along with
+    # workouts_per_week. Reserves the final workout of each
+    # week as a long run. Chooses at random between workouts for the remainder.
+    # Painful sprints and hill runs are deliberately rare. 
 
     plan_df = DataFrame(workout_type = String[],
                         workout_n = Float64[],
@@ -328,6 +334,12 @@ function pick_recovery_days(n_workouts)
 end
 
 
+function get_recovery_schedule(n_weeks, n_workouts)
+    weeks = [pick_recovery_days(n_workouts) for i in 1:n_weeks]
+    return(collect(Iterators.flatten(weeks)))
+end
+
+
 function add_recovery_workouts(running_plan, n_workouts)
     # Takes an array of taskpaper workouts, along with the number of workouts in
     # each week. Fills all non-run days with taskpaper-formatted recovery tasks
@@ -336,25 +348,15 @@ function add_recovery_workouts(running_plan, n_workouts)
         full_schedule = running_plan
     else
         n_weeks = ceil(length(running_plan)/n_workouts)
-
-        recovery_days = []
-
-        for i in 1:n_weeks
-            push!(recovery_days, pick_recovery_days(n_workouts))
-        end
-
-        recovery_days = collect(Iterators.flatten(recovery_days))
+        recovery_days = get_recovery_schedule(n_weeks, n_workouts)
 
         full_schedule = []
-
         while length(running_plan) > 0
             if recovery_days[1] == true
-                workout = choose_recovery_workout()
-                push!(full_schedule, workout)
+                push!(full_schedule, choose_recovery_workout())
                 deleteat!(recovery_days, 1)
             else
-                workout = running_plan[1]
-                push!(full_schedule, workout)
+                push!(full_schedule, running_plan[1])
                 deleteat!(recovery_days, 1)
                 deleteat!(running_plan, 1)
             end
@@ -367,13 +369,10 @@ function add_recovery_workouts(running_plan, n_workouts)
 end
 
 
-function build_plan(weekly_kms::Float64, n_workouts::Int64, goal_kms=42.2)
+function build_plan(weekly_kms::Float64, n_workouts::Int64, goal=42.2)
 
     # Build a raw array of daily workout distances:
-    daily_kms = generate_daily_kms(weekly_kms,
-                                   n_workouts,
-                                   goal_kms,
-                                   1.02)
+    daily_kms = generate_daily_kms(weekly_kms, n_workouts, goal)
 
     # Get some sweet, sweet quantum noise from the file:
     noise = alter_noise_array(read_noise_as_int())
@@ -381,19 +380,17 @@ function build_plan(weekly_kms::Float64, n_workouts::Int64, goal_kms=42.2)
     # Mix that quantum noise in with the daily distances:
     daily_kms = add_noise_to_distance_array(daily_kms, noise)
 
-    # Shorten the daily distances in line with goal_kms:
-    daily_kms = slice_distance_array_to_goal(daily_kms,
-                                             goal_kms)
+    # Shorten the daily distances in line with the goal distance:
+    daily_kms = slice_distance_array_to_goal(daily_kms, goal)
 
     # Build a workouts dataframe:
     workouts_df = build_workout_dataframe(daily_kms)
 
     # Build the final workouts plan:
-    workout_plan = choose_workout_plan(workouts_df,
-                                       n_workouts)
+    workout_plan = choose_workout_plan(workouts_df, n_workouts)
 
     # Print as taskpaper lines:
-    println("Quantum Run Training Plan ($(goal_kms)km):")
+    println("Quantum Run Training Plan ($(goal)km):")
     output_taskpaper(workout_plan, n_workouts)
 
 end
