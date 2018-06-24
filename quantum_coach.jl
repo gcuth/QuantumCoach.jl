@@ -371,9 +371,6 @@ end
 
 function build_plan(weekly_kms::Float64, n_workouts::Int64, goal_kms=42.2)
 
-    # Start by printing facts about current distance etc. to the console:
-    println("Quantum Run Training Plan ($(goal_kms)km):")
-
     # Build a raw array of daily workout distances:
     daily_kms = generate_daily_kms(weekly_kms,
                                    n_workouts,
@@ -398,6 +395,7 @@ function build_plan(weekly_kms::Float64, n_workouts::Int64, goal_kms=42.2)
                                        n_workouts)
 
     # Print as taskpaper lines:
+    println("Quantum Run Training Plan ($(goal_kms)km):")
     output_taskpaper(workout_plan, n_workouts)
 
 end
