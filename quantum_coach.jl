@@ -305,12 +305,10 @@ end
 
 
 function choose_recovery_workout()
-    # Takes a single noise integer, scales it, and returns a random workout in
-    # taskpaper format.
+    # Returns a random workout in taskpaper format.
     workouts = ["- Do a kettlebell workout @estimate(30m)",
                 "- Do the /r/bodyweightfitness Routine @estimate(60m)",
-                "- Do a session of Yoga with Adriene @estimate(60m)",
-                "- tk"]
+                "- Do a session of Yoga with Adriene @estimate(60m)"]
     return(workouts[rand(1:length(workouts))])
 end
 
