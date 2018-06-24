@@ -53,7 +53,7 @@ Also, while this is probably obvious:
 - I'm not responsible if you hurt yourself while following the training program.
 
 ## Motivation
-I've written a bit about the motivation for this project, and logic of the script, on [my blog](https://zgcuth.me/quantum-run). Broadly speaking though, the dumb motivation behind `quantum_coach` is obvious: every time I run, I my life diverges from the other, many worlds.
+I've written a bit about the motivation for this project, and logic of the script, on [my blog](https://zgcuth.me/quantum-run). Broadly speaking though, the dumb motivation behind `quantum_coach` is obvious: every time I run, my life diverges from the other, many worlds.
 
 I'll never know what it's like to train for a marathon in Universe B, but I feel a connection with that Other Self. Thanks to the behaviour of photons, we suffer differently. Together.
 
