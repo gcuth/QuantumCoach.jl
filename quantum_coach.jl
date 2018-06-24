@@ -268,7 +268,7 @@ function workout_to_taskpaper(run_type, run_n, run_distance)
 end
 
 
-function output_taskpaper(plan_df, n_workouts, add_recovery=true)
+function output_taskpaper(plan_df, n_workouts, add_recovery=true, add_defer=true)
     # Takes a workout plan dataframe and uses workout_to_taskpaper to output a
     # full list of workout tasks for import into omnifocus (or taskpaper!)
 
@@ -279,7 +279,10 @@ function output_taskpaper(plan_df, n_workouts, add_recovery=true)
 
     if add_recovery
         run_plan = add_recovery_workouts(run_plan, n_workouts)
-        run_plan = add_defer_dates_to_task(run_plan, 'today')
+    end
+
+    if add_defer
+        run_plan = add_defer_dates(run_plan, "today")
     end
 
     for i in 1:length(run_plan)
@@ -289,15 +292,15 @@ function output_taskpaper(plan_df, n_workouts, add_recovery=true)
 end
 
 
-function add_defer_dates_to_task(tasks, start_date)
+function add_defer_dates(tasklist, start_date)
     # Takes an array of strings (tasks) and adds taskpaper-formatted
     # 'start_date + [n]d' to each task before returning the array
-    new_tasks = []
-    for i in 1:length(tasks)
-        task = "$(tasks[i]) @defer($(start_date) +$(i)d)"
-        push!(new_tasks, task)
+    new_tasklist = []
+    for i in 1:length(tasklist)
+        new_task = "$(tasklist[i]) @defer($(start_date) +$(i)d)"
+        push!(new_tasklist, new_task)
     end
-    return(new_tasks)
+    return(new_tasklist)
 end
 
 
