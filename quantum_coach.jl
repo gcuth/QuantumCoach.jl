@@ -194,7 +194,7 @@ function get_workout_options(distance)
     if distance < 10
         options = easy_w
     else
-        options = vcat(easy_w,
+        options = vcat(repeat(easy_w, outer=2),
                        repeat(hard_w, outer=Int(div(distance,10))))
     end
 
