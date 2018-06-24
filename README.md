@@ -15,14 +15,14 @@ You'll need three things to use this script:
 ### Example Usage
 The easiest way to use this is to load `quantum_coach.jl` and then eval `build_plan()` with your personal workout details, in the form:
 
-```
+```julia
 build_plan(total_weekly_distance_in_km, number_of_running_workouts_per_week, goal_distance)
 ```
 
 For example, if I were running four times a week for a total of 30.0km and was aiming for a marathon distance:
 
-```
-julia -L quantum_coach.jl -e 'build_plan(30.0, 4, 42.2)'
+```bash
+$ julia -L quantum_coach.jl -e 'build_plan(30.0, 4, 42.2)'
 ```
 
 This will output a taskpaper project, looking something like this:
