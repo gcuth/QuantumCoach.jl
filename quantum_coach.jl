@@ -279,12 +279,25 @@ function output_taskpaper(plan_df, n_workouts, add_recovery=true)
 
     if add_recovery
         run_plan = add_recovery_workouts(run_plan, n_workouts)
+        run_plan = add_defer_dates_to_task(run_plan, 'today')
     end
 
     for i in 1:length(run_plan)
         println(run_plan[i])
     end
 
+end
+
+
+function add_defer_dates_to_task(tasks, start_date)
+    # Takes an array of strings (tasks) and adds taskpaper-formatted
+    # 'start_date + [n]d' to each task before returning the array
+    new_tasks = []
+    for i in 1:length(tasks)
+        task = "$(tasks[i]) @defer($(start_date) +$(i)d)"
+        push!(new_tasks, task)
+    end
+    return(new_tasks)
 end
 
 
